@@ -11,7 +11,7 @@
 #define PLAYER_ID 1
 #define PLAYER_SPEED 100.0f
 #define LIGHT_SPRITE_SIZE 128
-#define LIGHT_DIAMETER 192.0f
+#define LIGHT_DIAMETER 128.0f
 
 typedef enum EntityType EntityType;
 enum EntityType {
@@ -52,6 +52,29 @@ Vector2 getMousePosition(void) {
   mouse_pos.x = (mouse_pos.x - screen.x) / scale;
   mouse_pos.y = (mouse_pos.y - screen.y) / scale;
   return mouse_pos;
+}
+
+Texture2D makeLightSprite(int size, float power) {
+  Image img = GenImageColor(size, size, BLANK);
+  float center = (size - 1) / 2.0f;
+  float radius = size / 2.0f;
+
+  for (int y = 0; y < size; y++) {
+    for (int x = 0; x < size; x++) {
+      float dx = x - center;
+      float dy = y - center;
+      float d = sqrtf(dx * dx + dy * dy) / radius;
+      float a = 0.0f;
+      if (d < 1.0f)
+        a = powf(1.0f - d, power);
+      ImageDrawPixel(&img, x, y,
+                     (Color){255, 255, 255, (unsigned char)(a * 255.0f)});
+    }
+  }
+
+  Texture2D tex = LoadTextureFromImage(img);
+  UnloadImage(img);
+  return tex;
 }
 
 void addEntity(Entity *entities, Entity entity) {
@@ -150,13 +173,22 @@ void drawEntities(Entity *entities) {
 
 void drawLights(Texture2D light_sprite, Camera2D camera) {
   BeginBlendMode(BLEND_ADDITIVE);
-
+  float d = LIGHT_DIAMETER;
   Vector2 mouse_world = GetScreenToWorld2D(getMousePosition(), camera);
   Rectangle src = {0, 0, (float)light_sprite.width, (float)light_sprite.height};
-  Rectangle dst = {floorf(mouse_world.x), floorf(mouse_world.y), LIGHT_DIAMETER,
-                   LIGHT_DIAMETER};
-  Vector2 origin = {LIGHT_DIAMETER / 2.0f, LIGHT_DIAMETER / 2.0f};
+  Rectangle dst = {floorf(mouse_world.x), floorf(mouse_world.y), d, d};
+  Vector2 origin = {d / 2.0f, d / 2.0f};
+  DrawTexturePro(light_sprite, src, dst, origin, 0.0f, RED);
+
+  d -= 30.0f;
+  dst = (Rectangle){floorf(mouse_world.x), floorf(mouse_world.y), d, d};
+  origin = (Vector2){d / 2.0f, d / 2.0f};
   DrawTexturePro(light_sprite, src, dst, origin, 0.0f, ORANGE);
+
+  d -= 30.0f;
+  dst = (Rectangle){floorf(mouse_world.x), floorf(mouse_world.y), d, d};
+  origin = (Vector2){d / 2.0f, d / 2.0f};
+  DrawTexturePro(light_sprite, src, dst, origin, 0.0f, YELLOW);
 
   EndBlendMode();
 }
@@ -219,10 +251,13 @@ int main(void) {
   Texture2D background_texture =
       LoadTexture("./assets/background/background_glacial_mountains.png");
 
-  Image gradient = GenImageGradientRadial(LIGHT_SPRITE_SIZE, LIGHT_SPRITE_SIZE,
-                                          0.0f, WHITE, BLANK);
-  Texture2D light_sprite = LoadTextureFromImage(gradient);
-  UnloadImage(gradient);
+  // Image gradient = GenImageGradientRadial(LIGHT_SPRITE_SIZE,
+  // LIGHT_SPRITE_SIZE,
+  //                                         0.0f, WHITE, BLANK);
+  // Texture2D light_sprite = LoadTextureFromImage(gradient);
+  // UnloadImage(gradient);
+
+  Texture2D light_sprite = makeLightSprite(LIGHT_SPRITE_SIZE, 2.0f);
 
   Entity player = {0};
   player.pos.x = GAME_WIDTH / 2.0f;
