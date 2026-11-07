@@ -178,7 +178,7 @@ void drawLights(Texture2D light_sprite, Camera2D camera) {
   Rectangle src = {0, 0, (float)light_sprite.width, (float)light_sprite.height};
   Rectangle dst = {floorf(mouse_world.x), floorf(mouse_world.y), d, d};
   Vector2 origin = {d / 2.0f, d / 2.0f};
-  DrawTexturePro(light_sprite, src, dst, origin, 0.0f, RED);
+  DrawTexturePro(light_sprite, src, dst, origin, 0.0f, ORANGE);
 
   d -= 30.0f;
   dst = (Rectangle){floorf(mouse_world.x), floorf(mouse_world.y), d, d};
@@ -195,7 +195,8 @@ void drawLights(Texture2D light_sprite, Camera2D camera) {
 
 void renderer(Entity *entities, RenderTexture2D scene_texture,
               RenderTexture2D light_buffer, RenderTexture2D composite,
-              Texture2D light_sprite, Camera2D camera) {
+              Texture2D light_sprite, Camera2D camera, Shader lighting_shader,
+              int lighting_buffer_location) {
   BeginTextureMode(light_buffer);
   ClearBackground((Color){25, 25, 40, 255});
   BeginMode2D(camera);
@@ -214,10 +215,12 @@ void renderer(Entity *entities, RenderTexture2D scene_texture,
   Rectangle full = {0, 0, GAME_WIDTH, GAME_HEIGHT};
   BeginTextureMode(composite);
   ClearBackground(BLACK);
+  BeginShaderMode(lighting_shader);
+  SetShaderValueTexture(lighting_shader, lighting_buffer_location,
+                        light_buffer.texture);
   DrawTexturePro(scene_texture.texture, src, full, (Vector2){0, 0}, 0.0f,
                  WHITE);
-  BeginBlendMode(BLEND_MULTIPLIED);
-  DrawTexturePro(light_buffer.texture, src, full, (Vector2){0, 0}, 0.0f, WHITE);
+  EndShaderMode();
   EndBlendMode();
   if (DEBUG) {
     drawDebug(entities);
@@ -232,7 +235,7 @@ void renderer(Entity *entities, RenderTexture2D scene_texture,
 }
 
 int main(void) {
-  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+  SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
   InitWindow(GAME_WIDTH, GAME_HEIGHT, "RAYTRACING");
   SetTargetFPS(60);
   SetMouseCursor(MOUSE_CURSOR_ARROW);
@@ -246,18 +249,34 @@ int main(void) {
 
   Entity entities[MAX_ENTITIES] = {0};
 
-  Texture2D char_texture = LoadTexture(
-      "/home/omar/Work/raytracing2D/assets/samurai/Sprites/IDLE.png");
+  Texture2D char_texture = LoadTexture("assets/samurai/Sprites/IDLE.png");
   Texture2D background_texture =
-      LoadTexture("./assets/background/background_glacial_mountains.png");
+      LoadTexture("assets/background/background_glacial_mountains.png");
 
+  Texture2D light_sprite = makeLightSprite(LIGHT_SPRITE_SIZE, 2.0f);
   // Image gradient = GenImageGradientRadial(LIGHT_SPRITE_SIZE,
   // LIGHT_SPRITE_SIZE,
   //                                         0.0f, WHITE, BLANK);
   // Texture2D light_sprite = LoadTextureFromImage(gradient);
   // UnloadImage(gradient);
 
-  Texture2D light_sprite = makeLightSprite(LIGHT_SPRITE_SIZE, 2.0f);
+  Shader lighting_shader = LoadShader(NULL, "src/shaders/lighting.glsl");
+  if (!IsShaderValid(lighting_shader)) {
+    printf("lighting shader failed to load\n");
+    return 1;
+  }
+  int lighting_buffer_location =
+      GetShaderLocation(lighting_shader, "lightBuffer");
+  float levels = 4.0f;
+  Vector3 ambient = {20 / 255.0f, 20 / 255.0f, 40 / 255.0f};
+  float dither = 0.1f;
+  SetShaderValue(lighting_shader, GetShaderLocation(lighting_shader, "levels"),
+                 &levels, SHADER_UNIFORM_FLOAT);
+  SetShaderValue(lighting_shader, GetShaderLocation(lighting_shader, "ambient"),
+                 &ambient, SHADER_UNIFORM_VEC3);
+  SetShaderValue(lighting_shader,
+                 GetShaderLocation(lighting_shader, "ditherAmount"), &dither,
+                 SHADER_UNIFORM_FLOAT);
 
   Entity player = {0};
   player.pos.x = GAME_WIDTH / 2.0f;
@@ -285,7 +304,7 @@ int main(void) {
     physics(entities, dt);
     updateCamera(&camera, entities);
     renderer(entities, scene_texture, light_buffer, composite, light_sprite,
-             camera);
+             camera, lighting_shader, lighting_buffer_location);
   }
 
   UnloadTexture(light_sprite);
@@ -294,6 +313,7 @@ int main(void) {
   UnloadRenderTexture(scene_texture);
   UnloadRenderTexture(light_buffer);
   UnloadRenderTexture(composite);
+  UnloadShader(lighting_shader);
   CloseWindow();
   return 0;
 }
