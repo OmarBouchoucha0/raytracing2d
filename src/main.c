@@ -172,25 +172,31 @@ void drawEntities(Entity *entities) {
 }
 
 void drawLights(Texture2D light_sprite, Camera2D camera) {
-  BeginBlendMode(BLEND_ADDITIVE);
-  float d = LIGHT_DIAMETER;
+  static float time = 0.0f;
+  time += GetFrameTime();
+  float s = fabs(0.05f * sinf(time) + 1.0f);
+
+  float d = LIGHT_DIAMETER * s;
+  float o = d / 2.0f;
   Vector2 mouse_world = GetScreenToWorld2D(getMousePosition(), camera);
   Rectangle src = {0, 0, (float)light_sprite.width, (float)light_sprite.height};
   Rectangle dst = {floorf(mouse_world.x), floorf(mouse_world.y), d, d};
-  Vector2 origin = {d / 2.0f, d / 2.0f};
+  Vector2 origin = {o, o};
+  DrawTexturePro(light_sprite, src, dst, origin, 0.0f, RED);
+
+  s = fabs(0.05f * sinf(time + 3.2f) + 1.0f);
+  d = (LIGHT_DIAMETER - 30.0f) * s;
+  o = d / 2.0f;
+  dst = (Rectangle){floorf(mouse_world.x), floorf(mouse_world.y), d, d};
+  origin = (Vector2){o, o};
   DrawTexturePro(light_sprite, src, dst, origin, 0.0f, ORANGE);
 
-  d -= 30.0f;
+  s = fabs(0.05f * sinf(time + 5.7f) + 1.0f);
+  d = (LIGHT_DIAMETER - 60.0f) * s;
+  o = d / 2.0f;
   dst = (Rectangle){floorf(mouse_world.x), floorf(mouse_world.y), d, d};
-  origin = (Vector2){d / 2.0f, d / 2.0f};
-  DrawTexturePro(light_sprite, src, dst, origin, 0.0f, ORANGE);
-
-  d -= 30.0f;
-  dst = (Rectangle){floorf(mouse_world.x), floorf(mouse_world.y), d, d};
-  origin = (Vector2){d / 2.0f, d / 2.0f};
+  origin = (Vector2){o, o};
   DrawTexturePro(light_sprite, src, dst, origin, 0.0f, YELLOW);
-
-  EndBlendMode();
 }
 
 void renderer(Entity *entities, RenderTexture2D scene_texture,
@@ -253,7 +259,7 @@ int main(void) {
   Texture2D background_texture =
       LoadTexture("assets/background/background_glacial_mountains.png");
 
-  Texture2D light_sprite = makeLightSprite(LIGHT_SPRITE_SIZE, 2.0f);
+  Texture2D light_sprite = makeLightSprite(LIGHT_SPRITE_SIZE, 1.0f);
   // Image gradient = GenImageGradientRadial(LIGHT_SPRITE_SIZE,
   // LIGHT_SPRITE_SIZE,
   //                                         0.0f, WHITE, BLANK);
